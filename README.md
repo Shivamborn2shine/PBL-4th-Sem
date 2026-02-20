@@ -23,7 +23,7 @@ User → Frontend (S3) → API Gateway → Lambda → Threat Modules → Graph E
 ## Quick Start
 
 ### Local Testing
-Open `frontend/index.html` in any browser – runs fully standalone in mock mode.
+Open `index.html` in any browser – runs fully standalone in mock mode.
 
 ### AWS Deployment
 ```bash
@@ -31,7 +31,7 @@ cd infrastructure
 sam build
 sam deploy --guided
 ```
-Then update `CONFIG.API_BASE_URL` in `frontend/app.js` with your API Gateway URL.
+Then update `CONFIG.API_BASE_URL` in `app.js` with your API Gateway URL.
 
 ## Project Structure
 ```
@@ -42,6 +42,8 @@ sentinelsphere/
 │   ├── graph_engine/      # Graph builder & metrics
 │   ├── risk_engine/       # Risk calculator
 │   └── utils/             # Feature extraction & ML models
-├── frontend/              # Dashboard UI
-└── infrastructure/        # SAM template
+├── infrastructure/        # SAM template
+├── index.html             # Dashboard UI
+├── app.js                 # API integration + dashboard logic
+└── graph_visualization.js # D3.js graph visualization
 ```
