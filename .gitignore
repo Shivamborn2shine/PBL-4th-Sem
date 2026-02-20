@@ -1,0 +1,38 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Node
+node_modules/
+
+# Pickle models
+*.pkl
+
+# Logs
+*.log

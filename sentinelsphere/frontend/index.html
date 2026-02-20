@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SentinelSphere – Cloud-Based Proactive Threat Shield. Scan URLs, emails, and QR codes for threats in real-time.">
+    <title>SentinelSphere – Proactive Threat Shield</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           SentinelSphere Design System
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            /* ── Color Palette ─────────────────────────────────────── */
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(25, 35, 55, 0.85);
+            --bg-glass: rgba(15, 23, 42, 0.6);
+
+            --accent-cyan: #06b6d4;
+            --accent-cyan-glow: rgba(6, 182, 212, 0.3);
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-violet: #a855f7;
+
+            --risk-safe: #10b981;
+            --risk-safe-glow: rgba(16, 185, 129, 0.25);
+            --risk-suspicious: #f59e0b;
+            --risk-suspicious-glow: rgba(245, 158, 11, 0.25);
+            --risk-high: #ef4444;
+            --risk-high-glow: rgba(239, 68, 68, 0.25);
+
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --border: rgba(148, 163, 184, 0.1);
+            --border-active: rgba(6, 182, 212, 0.4);
+
+            /* ── Typography ────────────────────────────────────────── */
+            --font-body: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            /* ── Spacing ───────────────────────────────────────────── */
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated Background ───────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(6, 182, 212, 0.06), transparent),
+                radial-gradient(ellipse 500px 500px at 80% 80%, rgba(139, 92, 246, 0.05), transparent),
+                radial-gradient(ellipse 400px 300px at 50% 50%, rgba(59, 130, 246, 0.04), transparent);
+            pointer-events: none;
+            z-index: 0;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes ambientPulse {
+            0% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* ── Header ────────────────────────────────────────────────── */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 14, 26, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+        }
+
+        .header-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 70px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 20px var(--accent-cyan-glow);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { box-shadow: 0 0 20px var(--accent-cyan-glow); }
+            50% { box-shadow: 0 0 35px var(--accent-cyan-glow), 0 0 60px rgba(139, 92, 246, 0.15); }
+        }
+
+        .logo-text {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 500;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--risk-safe);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--risk-safe);
+            animation: statusBlink 2s ease-in-out infinite;
+        }
+
+        @keyframes statusBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Main Layout ───────────────────────────────────────────── */
+        .main {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Stats Bar ─────────────────────────────────────────────── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1.2rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-active);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .stat-icon.scans { background: rgba(6, 182, 212, 0.15); }
+        .stat-icon.threats { background: rgba(239, 68, 68, 0.15); }
+        .stat-icon.safe { background: rgba(16, 185, 129, 0.15); }
+        .stat-icon.graph { background: rgba(139, 92, 246, 0.15); }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Tab Navigation ────────────────────────────────────────── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-cyan-glow);
+        }
+
+        .tab-icon { font-size: 1rem; }
+
+        /* ── Content Grid ──────────────────────────────────────────── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Cards ─────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-badge {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-ai { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+        .badge-live { background: rgba(16, 185, 129, 0.2); color: var(--risk-safe); }
+
+        /* ── Forms ─────────────────────────────────────────────────── */
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px var(--accent-cyan-glow);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        textarea.form-input {
+            min-height: 120px;
+            resize: vertical;
+            font-family: var(--font-body);
+        }
+
+        /* ── File Upload ───────────────────────────────────────────── */
+        .file-upload {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .file-upload-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .file-upload-text { color: var(--text-secondary); font-size: 0.85rem; }
+        .file-upload-hint { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.3rem; }
+        .file-upload input[type="file"] {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* ── Buttons ───────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0.85rem 2rem;
+            border: none;
+            border-radius: var(--radius-xs);
+            font-family: var(--font-body);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-cyan-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px var(--accent-cyan-glow);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Spinner ───────────────────────────────────────────────── */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .btn.loading .spinner { display: block; }
+        .btn.loading .btn-text { display: none; }
+
+        /* ── Results Panel ─────────────────────────────────────────── */
+        .results-panel {
+            display: none;
+        }
+
+        .results-panel.visible {
+            display: block;
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Risk Gauge ────────────────────────────────────────────── */
+        .risk-gauge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 2rem 0;
+        }
+
+        .gauge-circle {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.6s ease;
+        }
+
+        .gauge-circle::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            padding: 4px;
+            background: conic-gradient(var(--gauge-color, var(--accent-cyan)) var(--gauge-percent, 0%), transparent 0%);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            animation: gaugeReveal 1s ease forwards;
+        }
+
+        @keyframes gaugeReveal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .gauge-score {
+            font-size: 2.5rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            line-height: 1;
+        }
+
+        .gauge-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 6px;
+        }
+
+        .risk-level-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 1rem;
+        }
+
+        .risk-safe { background: var(--risk-safe-glow); color: var(--risk-safe); }
+        .risk-suspicious { background: var(--risk-suspicious-glow); color: var(--risk-suspicious); }
+        .risk-high { background: var(--risk-high-glow); color: var(--risk-high); }
+
+        /* ── Score Breakdown ────────────────────────────────────────── */
+        .score-breakdown {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 1.5rem 0;
+        }
+
+        .score-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius-xs);
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .score-item-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.3rem;
+        }
+
+        .score-item-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .score-item-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s ease;
+        }
+
+        .score-item-value {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* ── Explanations ──────────────────────────────────────────── */
+        .explanations {
+            margin-top: 1.5rem;
+        }
+
+        .explanation-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+        }
+
+        .explanation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            animation: fadeIn 0.3s ease forwards;
+            opacity: 0;
+        }
+
+        .explanation-item:nth-child(1) { animation-delay: 0.1s; }
+        .explanation-item:nth-child(2) { animation-delay: 0.2s; }
+        .explanation-item:nth-child(3) { animation-delay: 0.3s; }
+        .explanation-item:nth-child(4) { animation-delay: 0.4s; }
+        .explanation-item:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .explanation-icon {
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+
+        /* ── History Table ─────────────────────────────────────────── */
+        .history-section {
+            margin-top: 2rem;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .history-table th {
+            text-align: left;
+            padding: 0.8rem 1rem;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .history-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+        }
+
+        .history-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .history-type {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .history-score {
+            font-family: var(--font-mono);
+            font-weight: 700;
+        }
+
+        /* ── Graph Visualization ───────────────────────────────────── */
+        .graph-container {
+            grid-column: 1 / -1;
+        }
+
+        #graph-viz {
+            width: 100%;
+            height: 450px;
+            border-radius: var(--radius-sm);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+        }
+
+        #graph-viz svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* ── Scan panels visibility ────────────────────────────────── */
+        .scan-panel { display: none; }
+        .scan-panel.active { display: block; }
+
+        /* ── Empty State ───────────────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+        .empty-text { font-size: 0.9rem; }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 1024px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .main { padding: 1rem; }
+            .stats-bar { grid-template-columns: 1fr; }
+            .tabs { width: 100%; overflow-x: auto; }
+            .header-inner { height: 60px; }
+            .score-breakdown { grid-template-columns: 1fr; }
+        }
+
+        /* ── Section Title ─────────────────────────────────────────── */
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-divider {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── QR Preview ────────────────────────────────────────────── */
+        .qr-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 1rem auto;
+            display: none;
+            border-radius: var(--radius-xs);
+            border: 2px solid var(--border);
+        }
+
+        .qr-preview.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ Header ═══════════════════════════════════════════════════ -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <div>
+                    <div class="logo-text">SentinelSphere</div>
+                    <div class="logo-subtitle">Proactive Threat Shield</div>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-dot"></div>
+                <span>System Online</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ Main Content ═════════════════════════════════════════════ -->
+    <main class="main">
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon scans">🔍</div>
+                <div>
+                    <div class="stat-value" id="totalScans">0</div>
+                    <div class="stat-label">Total Scans</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon threats">⚠️</div>
+                <div>
+                    <div class="stat-value" id="threatsFound">0</div>
+                    <div class="stat-label">Threats Found</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon safe">✅</div>
+                <div>
+                    <div class="stat-value" id="safeCount">0</div>
+                    <div class="stat-label">Safe Results</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon graph">🕸️</div>
+                <div>
+                    <div class="stat-value" id="graphNodes">0</div>
+                    <div class="stat-label">Graph Nodes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan Type Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="url" id="tabUrl">
+                <span class="tab-icon">🔗</span> URL Scan
+            </button>
+            <button class="tab" data-tab="email" id="tabEmail">
+                <span class="tab-icon">📧</span> Email Scan
+            </button>
+            <button class="tab" data-tab="qr" id="tabQr">
+                <span class="tab-icon">📱</span> QR Scan
+            </button>
+            <button class="tab" data-tab="graph" id="tabGraph">
+                <span class="tab-icon">🕸️</span> Graph View
+            </button>
+            <button class="tab" data-tab="history" id="tabHistory">
+                <span class="tab-icon">📋</span> History
+            </button>
+        </div>
+
+        <!-- ── Content Grid ──────────────────────────────────────── -->
+        <div class="content-grid">
+
+            <!-- LEFT: Scan Input Panels -->
+            <div class="card">
+                <!-- URL Scan Panel -->
+                <div class="scan-panel active" id="panelUrl">
+                    <div class="card-header">
+                        <div class="card-title">🔗 URL Threat Scanner</div>
+                        <span class="card-badge badge-ai">AI Powered</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="urlInput">Target URL</label>
+                        <input type="text" class="form-input" id="urlInput"
+                               placeholder="https://suspicious-site.example.com/login" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="urlUserId">User ID (optional)</label>
+                        <input type="text" class="form-input" id="urlUserId"
+                               placeholder="user-001" />
+                    </div>
+                    <button class="btn btn-primary" id="btnScanUrl" onclick="scanUrl()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">🔍 Analyze URL</span>
+                    </button>
+                </div>
+
+                <!-- Email Scan Panel -->
+                <div class="scan-panel" id="panelEmail">
+                    <div class="card-header">
+                        <div class="card-title">📧 Email Phishing Scanner</div>
+                        <span class="card-badge badge-ai">NLP + ML</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="emailInput">Email Content</label>
+                        <textarea class="form-input" id="emailInput"
+                                  placeholder="Paste the full email text here including headers if available..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="emailUserId">User ID (optional)</label>
+                        <input type="text" class="form-input" id="emailUserId"
+                               placeholder="user-001" />
+                    </div>
+                    <button class="btn btn-primary" id="btnScanEmail" onclick="scanEmail()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">🔍 Analyze Email</span>
+                    </button>
+                </div>
+
+                <!-- QR Scan Panel -->
+                <div class="scan-panel" id="panelQr">
+                    <div class="card-header">
+                        <div class="card-title">📱 QR Code Scanner</div>
+                        <span class="card-badge badge-ai">Decode + Scan</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Upload QR Code Image</label>
+                        <div class="file-upload" id="qrDropZone">
+                            <div class="file-upload-icon">📷</div>
+                            <div class="file-upload-text">Drop QR code image here or click to browse</div>
+                            <div class="file-upload-hint">Supports PNG, JPEG, WebP</div>
+                            <input type="file" id="qrFileInput" accept="image/*" onchange="handleQrUpload(event)" />
+                        </div>
+                    </div>
+                    <img class="qr-preview" id="qrPreview" alt="QR Preview" />
+                    <div class="form-group">
+                        <label class="form-label" for="qrUserId">User ID (optional)</label>
+                        <input type="text" class="form-input" id="qrUserId"
+                               placeholder="user-001" />
+                    </div>
+                    <button class="btn btn-primary" id="btnScanQr" onclick="scanQr()" disabled>
+                        <span class="spinner"></span>
+                        <span class="btn-text">🔍 Analyze QR Code</span>
+                    </button>
+                </div>
+
+                <!-- Graph Panel (input side) -->
+                <div class="scan-panel" id="panelGraphInput">
+                    <div class="card-header">
+                        <div class="card-title">🕸️ Threat Intelligence Graph</div>
+                        <span class="card-badge badge-live">Live</span>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.7;">
+                        The threat graph builds automatically with every scan. Nodes represent
+                        <strong style="color: var(--accent-cyan);">Users</strong>,
+                        <strong style="color: var(--risk-high);">Domains</strong>,
+                        <strong style="color: var(--risk-suspicious);">IPs</strong>, and
+                        <strong style="color: var(--accent-purple);">Emails</strong>.
+                        Edges show relationships like scanned, resolves_to, and associated_with.
+                    </p>
+                    <div class="graph-legend" style="margin-top: 1.5rem;">
+                        <div class="legend-item"><div class="legend-dot" style="background: #06b6d4;"></div> User</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #ef4444;"></div> Domain</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #f59e0b;"></div> IP</div>
+                        <div class="legend-item"><div class="legend-dot" style="background: #8b5cf6;"></div> Email</div>
+                    </div>
+                </div>
+
+                <!-- History Panel (input side) -->
+                <div class="scan-panel" id="panelHistoryInput">
+                    <div class="card-header">
+                        <div class="card-title">📋 Scan History</div>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.7;">
+                        All scan results are stored locally and displayed in the table.
+                        History persists across browser sessions via localStorage.
+                    </p>
+                    <button class="btn btn-primary" onclick="clearHistory()" style="margin-top: 1rem; background: rgba(239, 68, 68, 0.2); color: var(--risk-high); box-shadow: none;">
+                        <span class="btn-text">🗑️ Clear History</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT: Results Panel -->
+            <div class="card">
+                <div class="results-panel" id="resultsPanel">
+                    <!-- Risk Gauge -->
+                    <div class="risk-gauge">
+                        <div class="gauge-circle" id="gaugeCircle">
+                            <div class="gauge-score" id="gaugeScore">0.00</div>
+                            <div class="gauge-label" id="gaugeLabel">SCORE</div>
+                        </div>
+                        <div class="risk-level-badge" id="riskBadge">
+                            <span id="riskIcon">✅</span>
+                            <span id="riskText">SAFE</span>
+                        </div>
+                    </div>
+
+                    <!-- Score Breakdown -->
+                    <div class="section-title">Score Breakdown <div class="section-divider"></div></div>
+                    <div class="score-breakdown" id="scoreBreakdown"></div>
+
+                    <!-- Explanations -->
+                    <div class="explanations">
+                        <div class="explanation-title">Threat Indicators</div>
+                        <div id="explanationsList"></div>
+                    </div>
+                </div>
+
+                <!-- Graph Visualization (shown when graph tab is active) -->
+                <div class="scan-panel" id="panelGraphViz" style="display:none;">
+                    <div class="card-header">
+                        <div class="card-title">🕸️ Relationship Graph</div>
+                    </div>
+                    <div id="graph-viz"></div>
+                </div>
+
+                <!-- History Table (shown when history tab is active) -->
+                <div class="scan-panel" id="panelHistoryTable" style="display:none;">
+                    <div class="card-header">
+                        <div class="card-title">📋 Recent Scans</div>
+                    </div>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Input</th>
+                                <th>Risk</th>
+                                <th>Level</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody"></tbody>
+                    </table>
+                    <div class="empty-state" id="historyEmpty">
+                        <div class="empty-icon">📋</div>
+                        <div class="empty-text">No scans yet. Start scanning to build history.</div>
+                    </div>
+                </div>
+
+                <!-- Default empty state -->
+                <div class="empty-state" id="defaultEmpty">
+                    <div class="empty-icon">🛡️</div>
+                    <div class="empty-text">Enter a URL, email, or QR code to begin threat analysis</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+    <script src="graph_visualization.js"></script>
+</body>
+</html>
