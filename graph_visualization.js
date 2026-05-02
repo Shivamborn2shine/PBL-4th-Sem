@@ -1,5 +1,5 @@
 /**
- * SentinelSphere – Graph Visualization Module
+ * Observe4U – Graph Visualization Module
  *
  * D3.js force-directed graph for visualizing threat intelligence relationships.
  * Nodes: USER (cyan), DOMAIN (red), IP (amber), EMAIL (purple)

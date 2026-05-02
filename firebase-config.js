@@ -1,5 +1,5 @@
 /**
- * SentinelSphere – Firebase Configuration & Firestore Helpers
+ * Observe4U – Firebase Configuration & Firestore Helpers
  *
  * Initializes Firebase and provides Firestore CRUD operations
  * for threat reports, graph nodes, and graph edges.

@@ -1,5 +1,5 @@
 /**
- * SentinelSphere – Enhanced Features Module (v2.0)
+ * Observe4U – Enhanced Features Module (v2.0)
  * Adds: particles, toasts, analytics, bulk scan, export, feed, shortcuts
  */
 
@@ -81,11 +81,11 @@ function exportReport(format) {
     if (format === 'json') {
         const blob = new Blob([JSON.stringify(_lastScanResult, null, 2)], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `sentinelsphere-report-${Date.now()}.json`; a.click();
+        a.download = `observe4u-report-${Date.now()}.json`; a.click();
         showToast('Report exported as JSON', 'success');
     } else {
         const r = _lastScanResult;
-        const text = `SentinelSphere Threat Report\n${'='.repeat(40)}\nRisk Score: ${r.risk_score}\nRisk Level: ${r.risk_level}\nConfidence: ${r.confidence}\nTimestamp: ${r.timestamp}\n\nScore Breakdown:\n- ML Score: ${r.score_breakdown?.ml_score}\n- Reputation: ${r.score_breakdown?.reputation_score}\n- Graph: ${r.score_breakdown?.graph_score}\n- Rule Based: ${r.score_breakdown?.rule_based_score}\n\nExplanations:\n${(r.explanation||[]).map(e=>'• '+e).join('\n')}`;
+        const text = `Observe4U Threat Report\n${'='.repeat(40)}\nRisk Score: ${r.risk_score}\nRisk Level: ${r.risk_level}\nConfidence: ${r.confidence}\nTimestamp: ${r.timestamp}\n\nScore Breakdown:\n- ML Score: ${r.score_breakdown?.ml_score}\n- Reputation: ${r.score_breakdown?.reputation_score}\n- Graph: ${r.score_breakdown?.graph_score}\n- Rule Based: ${r.score_breakdown?.rule_based_score}\n\nExplanations:\n${(r.explanation||[]).map(e=>'• '+e).join('\n')}`;
         navigator.clipboard.writeText(text).then(() => showToast('Report copied to clipboard', 'success'));
     }
 }
@@ -94,7 +94,7 @@ function exportHistory() {
     if (!state.history.length) { showToast('No history to export', 'warning'); return; }
     const blob = new Blob([JSON.stringify(state.history, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `sentinelsphere-history-${Date.now()}.json`; a.click();
+    a.download = `observe4u-history-${Date.now()}.json`; a.click();
     showToast('History exported', 'success');
 }
 
@@ -205,10 +205,10 @@ function updateAnalytics() {
     // Trend bars
     const trendEl = document.getElementById('trendBars');
     if (trendEl) {
-        const sessions = JSON.parse(localStorage.getItem('sentinelsphere_sessions') || '[]');
+        const sessions = JSON.parse(localStorage.getItem('observe4u_sessions') || '[]');
         sessions.push(state.history.length);
         if (sessions.length > 7) sessions.splice(0, sessions.length - 7);
-        localStorage.setItem('sentinelsphere_sessions', JSON.stringify(sessions));
+        localStorage.setItem('observe4u_sessions', JSON.stringify(sessions));
         const max = Math.max(...sessions, 1);
         trendEl.innerHTML = sessions.map((v, i) => {
             const pct = (v/max)*100;

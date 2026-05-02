@@ -1,5 +1,5 @@
 /**
- * SentinelSphere – Frontend Application Logic
+ * Observe4U – Frontend Application Logic
  *
  * Handles API communication, form submission, result rendering,
  * and dashboard state management.
@@ -20,8 +20,8 @@ const CONFIG = {
 // ═══════════════════════════════════════════════════════════════════
 
 const state = {
-    history: JSON.parse(localStorage.getItem('sentinelsphere_history') || '[]'),
-    graphData: JSON.parse(localStorage.getItem('sentinelsphere_graph') || '{"nodes":[],"edges":[]}'),
+    history: JSON.parse(localStorage.getItem('observe4u_history') || '[]'),
+    graphData: JSON.parse(localStorage.getItem('observe4u_graph') || '{"nodes":[],"edges":[]}'),
     stats: {
         totalScans: 0,
         threatsFound: 0,
@@ -389,7 +389,7 @@ function addToHistory(type, input, result) {
 
     state.history.unshift(entry);
     if (state.history.length > 50) state.history = state.history.slice(0, 50);
-    localStorage.setItem('sentinelsphere_history', JSON.stringify(state.history));
+    localStorage.setItem('observe4u_history', JSON.stringify(state.history));
 
     // ── Persist to Firebase Firestore ────────────────────────────
     if (CONFIG.USE_FIREBASE && typeof firebaseSaveReport === 'function') {
@@ -441,8 +441,8 @@ function renderHistory() {
 function clearHistory() {
     state.history = [];
     state.graphData = { nodes: [], edges: [] };
-    localStorage.setItem('sentinelsphere_history', '[]');
-    localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+    localStorage.setItem('observe4u_history', '[]');
+    localStorage.setItem('observe4u_graph', JSON.stringify(state.graphData));
 
     // ── Clear Firebase Firestore ─────────────────────────────────
     if (CONFIG.USE_FIREBASE) {
@@ -490,7 +490,7 @@ function updateGraphFromScan(type, input, userId, result) {
     addGraphNode(`ip:${ip}`, 'IP', ip);
     addGraphEdge(`domain:${domain}`, `ip:${ip}`, 'resolves_to');
 
-    localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+    localStorage.setItem('observe4u_graph', JSON.stringify(state.graphData));
 
     // ── Persist graph to Firebase Firestore ──────────────────────
     if (CONFIG.USE_FIREBASE && typeof firebaseSaveGraphNode === 'function') {
@@ -711,7 +711,7 @@ async function initFirebaseData() {
                     risk_level: r.risk_level || 'SAFE',
                     timestamp: r.timestamp ? new Date(r.timestamp).toLocaleString() : new Date().toLocaleString(),
                 }));
-                localStorage.setItem('sentinelsphere_history', JSON.stringify(state.history));
+                localStorage.setItem('observe4u_history', JSON.stringify(state.history));
                 updateStats();
                 console.log('✅ History synced from Firestore');
             }
@@ -722,7 +722,7 @@ async function initFirebaseData() {
             const fbGraph = await firebaseLoadGraphData();
             if (fbGraph.nodes.length > 0 || fbGraph.edges.length > 0) {
                 state.graphData = fbGraph;
-                localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+                localStorage.setItem('observe4u_graph', JSON.stringify(state.graphData));
                 updateStats();
                 console.log('✅ Graph data synced from Firestore');
             }
