@@ -2,38 +2,13 @@
 graph_metrics.py – Graph Intelligence Metrics Module
 
 Computes graph-based threat metrics: frequency, centrality, burst detection,
-and overall graph suspicion scores from the DynamoDB graph tables.
+and overall graph suspicion scores from the Firebase Firestore graph collections.
 """
 
 import os
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 
-import boto3
-from botocore.exceptions import ClientError
-
-
-def _get_dynamodb():
-    """Get DynamoDB resource."""
-    endpoint_url = os.environ.get('DYNAMODB_ENDPOINT')
-    if endpoint_url:
-        return boto3.resource('dynamodb', endpoint_url=endpoint_url)
-    return boto3.resource('dynamodb')
-
-
-def _get_nodes_table():
-    table_name = os.environ.get('GRAPH_NODES_TABLE', 'SentinelSphere-GraphNodes')
-    return _get_dynamodb().Table(table_name)
-
-
-def _get_edges_table():
-    table_name = os.environ.get('GRAPH_EDGES_TABLE', 'SentinelSphere-GraphEdges')
-    return _get_dynamodb().Table(table_name)
-
-
-def _get_reports_table():
-    table_name = os.environ.get('THREAT_REPORTS_TABLE', 'SentinelSphere-ThreatReports')
-    return _get_dynamodb().Table(table_name)
+from utils.firebase_client import get_nodes_collection, get_edges_collection, get_reports_collection
 
 
 # ─── Metric Computation Functions ────────────────────────────────────────────
@@ -48,13 +23,14 @@ def compute_frequency_score(domain: str) -> float:
     """
     try:
         node_id = f'domain:{domain}'
-        table = _get_nodes_table()
-        response = table.get_item(Key={'node_id': node_id})
-        node = response.get('Item')
+        doc_id = node_id.replace('/', '_').replace('.', '_')
+        collection = get_nodes_collection()
+        doc = collection.document(doc_id).get()
 
-        if not node:
+        if not doc.exists:
             return 0.0
 
+        node = doc.to_dict()
         scan_count = int(node.get('scan_count', 0))
 
         # Normalize: 1 scan = 0, 10+ scans = 1.0
@@ -65,7 +41,7 @@ def compute_frequency_score(domain: str) -> float:
         else:
             return round((scan_count - 1) / 9.0, 4)
 
-    except ClientError:
+    except Exception:
         return 0.0
 
 
@@ -80,21 +56,15 @@ def compute_centrality_score(node_id: str) -> float:
         float: Normalized centrality score (0-1)
     """
     try:
-        edges_table = _get_edges_table()
+        edges_collection = get_edges_collection()
 
         # Count outgoing edges
-        outgoing = edges_table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('source_node').eq(node_id),
-            Select='COUNT'
-        )
-        out_count = outgoing.get('Count', 0)
+        outgoing = edges_collection.where('source_node', '==', node_id).stream()
+        out_count = sum(1 for _ in outgoing)
 
-        # Count incoming edges (requires scan)
-        incoming = edges_table.scan(
-            FilterExpression=boto3.dynamodb.conditions.Attr('target_node').eq(node_id),
-            Select='COUNT'
-        )
-        in_count = incoming.get('Count', 0)
+        # Count incoming edges
+        incoming = edges_collection.where('target_node', '==', node_id).stream()
+        in_count = sum(1 for _ in incoming)
 
         total_connections = out_count + in_count
 
@@ -106,7 +76,7 @@ def compute_centrality_score(node_id: str) -> float:
         else:
             return round((total_connections - 1) / 19.0, 4)
 
-    except ClientError:
+    except Exception:
         return 0.0
 
 
@@ -123,19 +93,21 @@ def compute_burst_score(domain: str, window_hours: int = 24) -> float:
         float: Burst score (0-1), higher = more bursty
     """
     try:
-        table = _get_reports_table()
+        collection = get_reports_collection()
         cutoff_time = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
 
-        # Scan for recent reports matching this domain
-        response = table.scan(
-            FilterExpression=(
-                boto3.dynamodb.conditions.Attr('input_value').contains(domain) &
-                boto3.dynamodb.conditions.Attr('timestamp').gte(cutoff_time)
-            ),
-            Select='COUNT'
-        )
+        # Query for recent reports matching this domain
+        # Note: Firestore requires a composite index for multi-field queries
+        # For simplicity, we filter by timestamp and check domain in code
+        query = collection.where('timestamp', '>=', cutoff_time)
+        docs = query.stream()
 
-        recent_count = response.get('Count', 0)
+        recent_count = 0
+        for doc in docs:
+            data = doc.to_dict()
+            input_value = data.get('input_value', '')
+            if domain in input_value:
+                recent_count += 1
 
         # Normalize: 0-1 reports = 0, 10+ reports in window = 1.0
         if recent_count <= 1:
@@ -145,7 +117,7 @@ def compute_burst_score(domain: str, window_hours: int = 24) -> float:
         else:
             return round((recent_count - 1) / 9.0, 4)
 
-    except ClientError:
+    except Exception:
         return 0.0
 
 
@@ -183,7 +155,7 @@ def compute_graph_suspicion(domain: str) -> dict:
 
 def compute_graph_suspicion_offline(domain: str, scan_count: int = 1) -> dict:
     """
-    Compute graph suspicion without DynamoDB access (for local/offline testing).
+    Compute graph suspicion without Firestore access (for local/offline testing).
     Uses simple heuristics based on available data.
 
     Args:

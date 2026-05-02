@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Threat reports — anyone can read/write (PBL demo mode)
+    match /threat_reports/{reportId} {
+      allow read, write: if true;
+    }
+
+    // Graph nodes — anyone can read/write
+    match /graph_nodes/{nodeId} {
+      allow read, write: if true;
+    }
+
+    // Graph edges — anyone can read/write
+    match /graph_edges/{edgeId} {
+      allow read, write: if true;
+    }
+  }
+}

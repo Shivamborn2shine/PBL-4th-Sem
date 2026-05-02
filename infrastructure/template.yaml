@@ -1,169 +1,33 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
-Description: SentinelSphere - Cloud-Based Proactive Threat Shield (Phase 1 MVP)
+# SentinelSphere – Infrastructure Configuration
+# ═══════════════════════════════════════════════════════════════════
+# This project has been fully migrated to Google Firebase.
+# AWS services (Lambda, API Gateway, DynamoDB) are no longer used.
+#
+# Current Architecture:
+#   Frontend  → Firebase Hosting (static HTML/CSS/JS)
+#   Database  → Firebase Firestore (NoSQL cloud database)
+#   Analytics → Firebase Analytics (usage tracking)
+#
+# Deployment:
+#   1. Install Firebase CLI:  npm install -g firebase-tools
+#   2. Login:                 firebase login
+#   3. Initialize:            firebase init (select Hosting + Firestore)
+#   4. Deploy:                firebase deploy
+#
+# Firestore Collections:
+#   - threat_reports  : Stores all scan reports (URL, Email, QR)
+#   - graph_nodes     : Stores graph entities (Users, Domains, IPs, Emails)
+#   - graph_edges     : Stores relationships between graph nodes
+#
+# Firebase Project: pbl-4th-sem
+# Project ID:      pbl-4th-sem
+# Hosting URL:     https://pbl-4th-sem.web.app
+# ═══════════════════════════════════════════════════════════════════
 
-Globals:
-  Function:
-    Runtime: python3.11
-    Timeout: 30
-    MemorySize: 256
-    Environment:
-      Variables:
-        THREAT_REPORTS_TABLE: !Ref ThreatReportsTable
-        GRAPH_NODES_TABLE: !Ref GraphNodesTable
-        GRAPH_EDGES_TABLE: !Ref GraphEdgesTable
-  Api:
-    Cors:
-      AllowMethods: "'POST,GET,OPTIONS'"
-      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-      AllowOrigin: "'*'"
-
-Resources:
-  # ─── API Gateway ───────────────────────────────────────────────
-  SentinelSphereApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      StageName: prod
-      Description: SentinelSphere REST API
-      EndpointConfiguration:
-        Type: REGIONAL
-      MethodSettings:
-        - HttpMethod: '*'
-          ResourcePath: '/*'
-          ThrottlingBurstLimit: 50
-          ThrottlingRateLimit: 100
-
-  # ─── Lambda Functions ─────────────────────────────────────────
-  ScanUrlFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: sentinelsphere-scan-url
-      Handler: handlers.scan_url.lambda_handler
-      CodeUri: ../backend/
-      Description: Scans URLs for threats using ML + graph intelligence
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ThreatReportsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphNodesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphEdgesTable
-      Events:
-        ScanUrl:
-          Type: Api
-          Properties:
-            RestApiId: !Ref SentinelSphereApi
-            Path: /api/v1/scan-url
-            Method: post
-
-  ScanEmailFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: sentinelsphere-scan-email
-      Handler: handlers.scan_email.lambda_handler
-      CodeUri: ../backend/
-      Description: Scans emails for phishing using NLP + ML
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ThreatReportsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphNodesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphEdgesTable
-      Events:
-        ScanEmail:
-          Type: Api
-          Properties:
-            RestApiId: !Ref SentinelSphereApi
-            Path: /api/v1/scan-email
-            Method: post
-
-  ScanQrFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: sentinelsphere-scan-qr
-      Handler: handlers.scan_qr.lambda_handler
-      CodeUri: ../backend/
-      Description: Decodes QR codes and scans extracted URLs
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ThreatReportsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphNodesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref GraphEdgesTable
-      Events:
-        ScanQr:
-          Type: Api
-          Properties:
-            RestApiId: !Ref SentinelSphereApi
-            Path: /api/v1/scan-qr
-            Method: post
-
-  # ─── DynamoDB Tables ───────────────────────────────────────────
-  ThreatReportsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: SentinelSphere-ThreatReports
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: report_id
-          AttributeType: S
-        - AttributeName: user_id
-          AttributeType: S
-        - AttributeName: timestamp
-          AttributeType: S
-      KeySchema:
-        - AttributeName: report_id
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: UserIdIndex
-          KeySchema:
-            - AttributeName: user_id
-              KeyType: HASH
-            - AttributeName: timestamp
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
-
-  GraphNodesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: SentinelSphere-GraphNodes
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: node_id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: node_id
-          KeyType: HASH
-
-  GraphEdgesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: SentinelSphere-GraphEdges
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: source_node
-          AttributeType: S
-        - AttributeName: target_node
-          AttributeType: S
-      KeySchema:
-        - AttributeName: source_node
-          KeyType: HASH
-        - AttributeName: target_node
-          KeyType: RANGE
-
-Outputs:
-  ApiUrl:
-    Description: API Gateway endpoint URL
-    Value: !Sub "https://${SentinelSphereApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-  ScanUrlFunctionArn:
-    Description: Scan URL Lambda Function ARN
-    Value: !GetAtt ScanUrlFunction.Arn
-  ScanEmailFunctionArn:
-    Description: Scan Email Lambda Function ARN
-    Value: !GetAtt ScanEmailFunction.Arn
-  ScanQrFunctionArn:
-    Description: Scan QR Lambda Function ARN
-    Value: !GetAtt ScanQrFunction.Arn
+# NOTE: The previous AWS SAM template (template.yaml) has been replaced.
+# All Lambda functions, API Gateway, and DynamoDB table definitions
+# have been removed as part of the Firebase migration.
+#
+# The Python backend modules (threat_modules/, graph_engine/, risk_engine/)
+# are retained as reference implementations. The threat analysis logic
+# now runs client-side in JavaScript for the MVP deployment.

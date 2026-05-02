@@ -1,45 +1,21 @@
 """
 graph_builder.py – Graph Intelligence Builder Module
 
-Creates and manages threat intelligence graph nodes and edges in DynamoDB.
+Creates and manages threat intelligence graph nodes and edges in Firebase Firestore.
 Tracks relationships between users, domains, IPs, and emails.
 """
 
 import os
-import uuid
 from datetime import datetime, timezone
 
-import boto3
-from botocore.exceptions import ClientError
-
-
-# ─── DynamoDB Configuration ──────────────────────────────────────────────────
-
-def _get_dynamodb():
-    """Get DynamoDB resource (supports local and AWS environments)."""
-    endpoint_url = os.environ.get('DYNAMODB_ENDPOINT')
-    if endpoint_url:
-        return boto3.resource('dynamodb', endpoint_url=endpoint_url)
-    return boto3.resource('dynamodb')
-
-
-def _get_nodes_table():
-    """Get the GraphNodes DynamoDB table."""
-    table_name = os.environ.get('GRAPH_NODES_TABLE', 'SentinelSphere-GraphNodes')
-    return _get_dynamodb().Table(table_name)
-
-
-def _get_edges_table():
-    """Get the GraphEdges DynamoDB table."""
-    table_name = os.environ.get('GRAPH_EDGES_TABLE', 'SentinelSphere-GraphEdges')
-    return _get_dynamodb().Table(table_name)
+from utils.firebase_client import get_nodes_collection, get_edges_collection
 
 
 # ─── Node Operations ─────────────────────────────────────────────────────────
 
 def create_node(node_id: str, node_type: str, metadata: dict = None) -> dict:
     """
-    Create or update a graph node in DynamoDB.
+    Create or update a graph node in Firestore.
 
     Args:
         node_id: Unique identifier for the node
@@ -49,37 +25,47 @@ def create_node(node_id: str, node_type: str, metadata: dict = None) -> dict:
     Returns:
         dict: The created/updated node item
     """
-    table = _get_nodes_table()
+    collection = get_nodes_collection()
     now = datetime.now(timezone.utc).isoformat()
+
+    # Sanitize node_id for use as Firestore document ID
+    doc_id = node_id.replace('/', '_').replace('.', '_')
 
     item = {
         'node_id': node_id,
         'node_type': node_type,
-        'created_at': now,
         'updated_at': now,
-        'scan_count': 1,
     }
 
     if metadata:
         item['metadata'] = metadata
 
     try:
-        # Try to update existing node (increment scan_count)
-        response = table.update_item(
-            Key={'node_id': node_id},
-            UpdateExpression='SET node_type = :nt, updated_at = :ua, scan_count = if_not_exists(scan_count, :zero) + :inc',
-            ExpressionAttributeValues={
-                ':nt': node_type,
-                ':ua': now,
-                ':inc': 1,
-                ':zero': 0,
-            },
-            ReturnValues='ALL_NEW'
-        )
-        return response.get('Attributes', item)
-    except ClientError:
-        # Fallback: put the item directly
-        table.put_item(Item=item)
+        doc_ref = collection.document(doc_id)
+        doc = doc_ref.get()
+
+        if doc.exists:
+            # Update existing node (increment scan_count)
+            from google.cloud.firestore_v1 import Increment
+            doc_ref.update({
+                'node_type': node_type,
+                'updated_at': now,
+                'scan_count': Increment(1),
+            })
+            updated = doc_ref.get().to_dict()
+            return updated
+        else:
+            # Create new node
+            item['created_at'] = now
+            item['scan_count'] = 1
+            doc_ref.set(item)
+            return item
+
+    except Exception:
+        # Fallback: set the item directly
+        item['created_at'] = now
+        item['scan_count'] = 1
+        collection.document(doc_id).set(item)
         return item
 
 
@@ -90,11 +76,14 @@ def get_node(node_id: str) -> dict:
     Returns:
         dict or None: Node item if found
     """
-    table = _get_nodes_table()
+    collection = get_nodes_collection()
+    doc_id = node_id.replace('/', '_').replace('.', '_')
     try:
-        response = table.get_item(Key={'node_id': node_id})
-        return response.get('Item')
-    except ClientError:
+        doc = collection.document(doc_id).get()
+        if doc.exists:
+            return doc.to_dict()
+        return None
+    except Exception:
         return None
 
 
@@ -102,7 +91,7 @@ def get_node(node_id: str) -> dict:
 
 def create_edge(source_node: str, target_node: str, relation_type: str, weight: float = 1.0) -> dict:
     """
-    Create or update a graph edge in DynamoDB.
+    Create or update a graph edge in Firestore.
 
     Args:
         source_node: Source node ID
@@ -113,41 +102,42 @@ def create_edge(source_node: str, target_node: str, relation_type: str, weight: 
     Returns:
         dict: The created/updated edge item
     """
-    table = _get_edges_table()
+    collection = get_edges_collection()
     now = datetime.now(timezone.utc).isoformat()
+
+    # Create a composite document ID
+    doc_id = f"{source_node}__{target_node}".replace('/', '_').replace('.', '_')
 
     item = {
         'source_node': source_node,
         'target_node': target_node,
         'relation_type': relation_type,
-        'weight': str(weight),  # DynamoDB doesn't support float directly
+        'weight': weight,
         'timestamp': now,
         'occurrence_count': 1,
     }
 
     try:
-        # Update existing edge (increment occurrence_count, update weight)
-        response = table.update_item(
-            Key={
-                'source_node': source_node,
-                'target_node': target_node,
-            },
-            UpdateExpression='SET relation_type = :rt, weight = :w, #ts = :ts, occurrence_count = if_not_exists(occurrence_count, :zero) + :inc',
-            ExpressionAttributeNames={
-                '#ts': 'timestamp'
-            },
-            ExpressionAttributeValues={
-                ':rt': relation_type,
-                ':w': str(weight),
-                ':ts': now,
-                ':inc': 1,
-                ':zero': 0,
-            },
-            ReturnValues='ALL_NEW'
-        )
-        return response.get('Attributes', item)
-    except ClientError:
-        table.put_item(Item=item)
+        doc_ref = collection.document(doc_id)
+        doc = doc_ref.get()
+
+        if doc.exists:
+            # Update existing edge
+            from google.cloud.firestore_v1 import Increment
+            doc_ref.update({
+                'relation_type': relation_type,
+                'weight': weight,
+                'timestamp': now,
+                'occurrence_count': Increment(1),
+            })
+            updated = doc_ref.get().to_dict()
+            return updated
+        else:
+            doc_ref.set(item)
+            return item
+
+    except Exception:
+        collection.document(doc_id).set(item)
         return item
 
 
@@ -158,30 +148,28 @@ def get_edges_from(source_node: str) -> list:
     Returns:
         list: List of edge items
     """
-    table = _get_edges_table()
+    collection = get_edges_collection()
     try:
-        response = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('source_node').eq(source_node)
-        )
-        return response.get('Items', [])
-    except ClientError:
+        query = collection.where('source_node', '==', source_node)
+        docs = query.stream()
+        return [doc.to_dict() for doc in docs]
+    except Exception:
         return []
 
 
 def get_edges_to(target_node: str) -> list:
     """
-    Get all incoming edges to a target node (requires scan).
+    Get all incoming edges to a target node.
 
     Returns:
         list: List of edge items pointing to this node
     """
-    table = _get_edges_table()
+    collection = get_edges_collection()
     try:
-        response = table.scan(
-            FilterExpression=boto3.dynamodb.conditions.Attr('target_node').eq(target_node)
-        )
-        return response.get('Items', [])
-    except ClientError:
+        query = collection.where('target_node', '==', target_node)
+        docs = query.stream()
+        return [doc.to_dict() for doc in docs]
+    except Exception:
         return []
 
 

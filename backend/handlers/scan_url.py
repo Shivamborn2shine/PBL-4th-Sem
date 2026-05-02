@@ -12,9 +12,6 @@ import traceback
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-import boto3
-from botocore.exceptions import ClientError
-
 
 def lambda_handler(event, context):
     """
@@ -101,7 +98,7 @@ def lambda_handler(event, context):
             rule_based_score=analysis['rule_based_score']
         )
 
-        # ── Store Report in DynamoDB ──────────────────────────────
+        # ── Store Report in Firebase Firestore ────────────────────
         report_id = str(uuid.uuid4())
         timestamp = datetime.now(timezone.utc).isoformat()
         report = {
@@ -109,20 +106,18 @@ def lambda_handler(event, context):
             'user_id': user_id,
             'input_type': 'URL',
             'input_value': url,
-            'risk_score': str(risk_result['risk_score']),
+            'risk_score': risk_result['risk_score'],
             'risk_level': risk_result['risk_level'],
             'explanation': analysis['explanations'],
             'timestamp': timestamp,
-            'score_breakdown': json.dumps(risk_result['score_breakdown']),
+            'score_breakdown': risk_result['score_breakdown'],
         }
 
         try:
-            table_name = os.environ.get('THREAT_REPORTS_TABLE', 'SentinelSphere-ThreatReports')
-            dynamodb = boto3.resource('dynamodb')
-            table = dynamodb.Table(table_name)
-            table.put_item(Item=report)
+            from utils.firebase_client import get_reports_collection
+            get_reports_collection().document(report_id).set(report)
         except Exception as e:
-            print(f'DynamoDB write warning: {str(e)}')
+            print(f'Firestore write warning: {str(e)}')
 
         # ── Build Response ────────────────────────────────────────
         response_body = {

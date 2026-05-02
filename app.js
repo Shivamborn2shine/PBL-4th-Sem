@@ -10,9 +10,9 @@
 // ═══════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-    // Update this to your API Gateway URL after deployment
-    API_BASE_URL: '', // e.g., 'https://abc123.execute-api.us-east-1.amazonaws.com/prod'
-    MOCK_MODE: true,  // Set to false when API is deployed
+    // All threat analysis runs client-side; Firebase Firestore handles cloud persistence
+    MOCK_MODE: true,       // Client-side threat analysis engine
+    USE_FIREBASE: true,    // Firebase Firestore for cloud storage & sync
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -55,6 +55,10 @@ document.querySelectorAll('.tab').forEach(tab => {
             document.getElementById('panelEmail').classList.add('active');
         } else if (tabName === 'qr') {
             document.getElementById('panelQr').classList.add('active');
+        } else if (tabName === 'bulk') {
+            document.getElementById('panelBulk').classList.add('active');
+            document.getElementById('defaultEmpty').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'none';
         } else if (tabName === 'graph') {
             document.getElementById('panelGraphInput').classList.add('active');
             document.getElementById('panelGraphViz').style.display = 'block';
@@ -387,6 +391,22 @@ function addToHistory(type, input, result) {
     if (state.history.length > 50) state.history = state.history.slice(0, 50);
     localStorage.setItem('sentinelsphere_history', JSON.stringify(state.history));
 
+    // ── Persist to Firebase Firestore ────────────────────────────
+    if (CONFIG.USE_FIREBASE && typeof firebaseSaveReport === 'function') {
+        const report = {
+            report_id: result.report_id || entry.id.toString(),
+            input_type: type,
+            input_value: input.length > 500 ? input.substring(0, 500) : input,
+            risk_score: result.risk_score,
+            risk_level: result.risk_level,
+            explanation: result.explanation || [],
+            score_breakdown: result.score_breakdown || {},
+            confidence: result.confidence || 0,
+            timestamp: new Date().toISOString(),
+        };
+        firebaseSaveReport(report);
+    }
+
     updateStats();
 }
 
@@ -423,6 +443,13 @@ function clearHistory() {
     state.graphData = { nodes: [], edges: [] };
     localStorage.setItem('sentinelsphere_history', '[]');
     localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+
+    // ── Clear Firebase Firestore ─────────────────────────────────
+    if (CONFIG.USE_FIREBASE) {
+        if (typeof firebaseClearHistory === 'function') firebaseClearHistory();
+        if (typeof firebaseClearGraphData === 'function') firebaseClearGraphData();
+    }
+
     updateStats();
     renderHistory();
     if (typeof renderGraph === 'function') renderGraph(state.graphData);
@@ -464,6 +491,16 @@ function updateGraphFromScan(type, input, userId, result) {
     addGraphEdge(`domain:${domain}`, `ip:${ip}`, 'resolves_to');
 
     localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+
+    // ── Persist graph to Firebase Firestore ──────────────────────
+    if (CONFIG.USE_FIREBASE && typeof firebaseSaveGraphNode === 'function') {
+        firebaseSaveGraphNode(`user:${userId}`, 'USER', userId);
+        firebaseSaveGraphNode(`domain:${domain}`, 'DOMAIN', domain);
+        firebaseSaveGraphNode(`ip:${ip}`, 'IP', ip);
+        firebaseSaveGraphEdge(`user:${userId}`, `domain:${domain}`, 'scanned');
+        firebaseSaveGraphEdge(`domain:${domain}`, `ip:${ip}`, 'resolves_to');
+    }
+
     updateStats();
 }
 
@@ -656,3 +693,44 @@ document.head.appendChild(style);
 // ═══════════════════════════════════════════════════════════════════
 
 updateStats();
+
+// ── Load data from Firebase on startup ───────────────────────────
+async function initFirebaseData() {
+    if (!CONFIG.USE_FIREBASE) return;
+    try {
+        // Load history from Firestore
+        if (typeof firebaseLoadHistory === 'function') {
+            const fbHistory = await firebaseLoadHistory();
+            if (fbHistory.length > 0) {
+                // Merge Firestore data — Firestore is source of truth
+                state.history = fbHistory.map(r => ({
+                    id: r.id || Date.now(),
+                    type: r.input_type || 'URL',
+                    input: (r.input_value || '').length > 60 ? r.input_value.substring(0, 60) + '...' : (r.input_value || ''),
+                    risk_score: parseFloat(r.risk_score) || 0,
+                    risk_level: r.risk_level || 'SAFE',
+                    timestamp: r.timestamp ? new Date(r.timestamp).toLocaleString() : new Date().toLocaleString(),
+                }));
+                localStorage.setItem('sentinelsphere_history', JSON.stringify(state.history));
+                updateStats();
+                console.log('✅ History synced from Firestore');
+            }
+        }
+
+        // Load graph data from Firestore
+        if (typeof firebaseLoadGraphData === 'function') {
+            const fbGraph = await firebaseLoadGraphData();
+            if (fbGraph.nodes.length > 0 || fbGraph.edges.length > 0) {
+                state.graphData = fbGraph;
+                localStorage.setItem('sentinelsphere_graph', JSON.stringify(state.graphData));
+                updateStats();
+                console.log('✅ Graph data synced from Firestore');
+            }
+        }
+    } catch (error) {
+        console.warn('Firebase sync failed, using localStorage fallback:', error);
+    }
+}
+
+// Run Firebase sync after page loads
+window.addEventListener('load', () => setTimeout(initFirebaseData, 500));

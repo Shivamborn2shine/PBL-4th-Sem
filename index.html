@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="enhanced.css">
     <style>
         /* ═══════════════════════════════════════════════════════════════
            SentinelSphere Design System
@@ -769,6 +770,8 @@
     </style>
 </head>
 <body>
+    <canvas id="particleCanvas"></canvas>
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- ═══ Header ═══════════════════════════════════════════════════ -->
     <header class="header">
@@ -780,9 +783,13 @@
                     <div class="logo-subtitle">Proactive Threat Shield</div>
                 </div>
             </div>
-            <div class="header-status">
-                <div class="status-dot"></div>
-                <span>System Online</span>
+            <div class="header-meta">
+                <span class="header-version">v2.0</span>
+                <div class="header-clock" id="headerClock">--:--:--</div>
+                <div class="header-status">
+                    <div class="status-dot"></div>
+                    <span>System Online</span>
+                </div>
             </div>
         </div>
     </header>
@@ -820,6 +827,37 @@
                     <div class="stat-label">Graph Nodes</div>
                 </div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(168,85,247,0.15)">📊</div>
+                <div>
+                    <div class="stat-value" id="avgRisk">0.00</div>
+                    <div class="stat-label">Avg Risk Score</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(59,130,246,0.15)">⏱️</div>
+                <div>
+                    <div class="stat-value" id="lastScanTime">--</div>
+                    <div class="stat-label">Last Scan</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="analytics-section" id="analyticsSection">
+            <div class="analytics-card">
+                <div class="card-title">📊 Threat Distribution</div>
+                <div class="donut-chart" id="donutChart"></div>
+                <div class="donut-legend">
+                    <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#10b981"></div> Safe</div>
+                    <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#f59e0b"></div> Suspicious</div>
+                    <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#ef4444"></div> High Risk</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-title">📈 Scan Trend (Last 7 Sessions)</div>
+                <div class="trend-bars" id="trendBars"></div>
+            </div>
         </div>
 
         <!-- Scan Type Tabs -->
@@ -835,6 +873,9 @@
             </button>
             <button class="tab" data-tab="graph" id="tabGraph">
                 <span class="tab-icon">🕸️</span> Graph View
+            </button>
+            <button class="tab" data-tab="bulk" id="tabBulk">
+                <span class="tab-icon">📦</span> Bulk Scan
             </button>
             <button class="tab" data-tab="history" id="tabHistory">
                 <span class="tab-icon">📋</span> History
@@ -917,6 +958,27 @@
                     </button>
                 </div>
 
+                <!-- Bulk Scan Panel -->
+                <div class="scan-panel" id="panelBulk">
+                    <div class="card-header">
+                        <div class="card-title">📦 Bulk URL Scanner</div>
+                        <span class="card-badge badge-ai">Batch Mode</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="bulkInput">URLs (one per line)</label>
+                        <textarea class="form-input" id="bulkInput" style="min-height:150px;font-family:var(--font-mono);font-size:0.8rem;"
+                                  placeholder="https://example1.com&#10;https://example2.com&#10;http://suspicious-site.tk/login"></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="btnBulkScan" onclick="bulkScan()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">🚀 Scan All URLs</span>
+                    </button>
+                    <div class="bulk-progress" id="bulkProgress">
+                        <div class="bulk-progress-fill" id="bulkProgressFill"></div>
+                    </div>
+                    <div class="bulk-results" id="bulkResults"></div>
+                </div>
+
                 <!-- Graph Panel (input side) -->
                 <div class="scan-panel" id="panelGraphInput">
                     <div class="card-header">
@@ -969,14 +1031,33 @@
                         </div>
                     </div>
 
-                    <!-- Score Breakdown -->
-                    <div class="section-title">Score Breakdown <div class="section-divider"></div></div>
-                    <div class="score-breakdown" id="scoreBreakdown"></div>
+                    <!-- Result Tabs -->
+                    <div class="result-tabs">
+                        <button class="result-tab active" onclick="switchResultTab('overview')">Overview</button>
+                        <button class="result-tab" onclick="switchResultTab('signals')">Signals</button>
+                        <button class="result-tab" onclick="switchResultTab('json')">Raw JSON</button>
+                    </div>
 
-                    <!-- Explanations -->
-                    <div class="explanations">
-                        <div class="explanation-title">Threat Indicators</div>
-                        <div id="explanationsList"></div>
+                    <div class="result-pane active" id="resultOverview">
+                        <div class="section-title">Score Breakdown <div class="section-divider"></div></div>
+                        <div class="score-breakdown" id="scoreBreakdown"></div>
+                    </div>
+
+                    <div class="result-pane" id="resultSignals">
+                        <div class="explanations">
+                            <div class="explanation-title">Threat Indicators</div>
+                            <div id="explanationsList"></div>
+                        </div>
+                    </div>
+
+                    <div class="result-pane" id="resultJson">
+                        <pre class="raw-json" id="rawJsonOutput">{}</pre>
+                    </div>
+
+                    <!-- Export -->
+                    <div style="display:flex;gap:8px;margin-top:1.2rem;">
+                        <button class="export-btn" onclick="exportReport('json')">📄 Export JSON</button>
+                        <button class="export-btn" onclick="exportReport('text')">📋 Copy Report</button>
                     </div>
                 </div>
 
@@ -992,6 +1073,19 @@
                 <div class="scan-panel" id="panelHistoryTable" style="display:none;">
                     <div class="card-header">
                         <div class="card-title">📋 Recent Scans</div>
+                        <button class="export-btn" onclick="exportHistory()">📥 Export</button>
+                    </div>
+                    <div class="history-controls">
+                        <div class="search-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="history-search" id="historySearch" placeholder="Search scans..." oninput="filterHistory()">
+                        </div>
+                        <div class="filter-chips">
+                            <button class="filter-chip active" data-filter="all" onclick="setHistoryFilter('all',this)">All</button>
+                            <button class="filter-chip" data-filter="URL" onclick="setHistoryFilter('URL',this)">URL</button>
+                            <button class="filter-chip" data-filter="EMAIL" onclick="setHistoryFilter('EMAIL',this)">Email</button>
+                            <button class="filter-chip" data-filter="QR" onclick="setHistoryFilter('QR',this)">QR</button>
+                        </div>
                     </div>
                     <table class="history-table">
                         <thead>
@@ -1018,10 +1112,45 @@
                 </div>
             </div>
         </div>
+
+        <!-- Live Threat Feed -->
+        <div class="threat-feed" id="threatFeed">
+            <div class="threat-feed-label"><div class="feed-live-dot"></div> LIVE THREAT FEED</div>
+            <div class="threat-feed-scroll" id="feedScroll"></div>
+        </div>
+
     </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">SentinelSphere</div>
+            <div class="footer-tagline">Cloud-Based Proactive Threat Shield — Powered by ML & Graph Intelligence</div>
+            <div class="footer-links">
+                <a href="https://github.com/Shivamborn2shine/PBL-4th-Sem" target="_blank" class="footer-link">GitHub</a>
+                <a href="#" class="footer-link">Documentation</a>
+                <a href="#" class="footer-link">API Reference</a>
+            </div>
+            <div class="footer-copy">© 2026 SentinelSphere · PBL 4th Semester Project · All Rights Reserved</div>
+        </div>
+    </footer>
+
+    <!-- Keyboard Shortcut Hint -->
+    <div class="shortcut-hint">
+        <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to scan · <kbd>Ctrl</kbd>+<kbd>E</kbd> export
+    </div>
+
+    <!-- Firebase SDK (compat mode for simplicity) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+
+    <!-- Firebase Config (must load before app.js) -->
+    <script src="firebase-config.js"></script>
 
     <!-- Scripts -->
     <script src="app.js"></script>
     <script src="graph_visualization.js"></script>
+    <script src="enhanced-features.js"></script>
 </body>
 </html>
